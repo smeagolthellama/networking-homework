@@ -2,6 +2,8 @@
 use strict;
 use warnings;
 use Socket;
+use utf8;
+use Encode qw(encode decode);
 
 socket(my $socket, PF_INET, SOCK_STREAM,getprotobyname("tcp"))
 	or die("socket:$!");
@@ -21,13 +23,13 @@ until($string eq "exit"){
 	accept(my $newsock,$socket)
 		or die("accept:$!");
 	$newsock->autoflush(1);
-	while($string=<$newsock>){
+	while($string=decode("utf8",<$newsock>)){
 		$string=~s/\s*$//;
 		if($string eq "exit"){
 			last;
 		}
-		print "$string\n";
-		print $newsock uc "$string\n";
+		print encode "utf8", "$string\n";
+		print $newsock encode("utf8", uc "$string\n");
 	}
 	close $newsock;
 }
