@@ -4,6 +4,7 @@ use warnings;
 use Socket;
 use utf8;
 use Encode qw(encode decode);
+use sigtrap qw(handler handler normal-signals stack-trace error-signals);
 
 socket(my $socket, PF_INET, SOCK_STREAM,getprotobyname("tcp"))
 	or die("socket:$!");
@@ -19,18 +20,24 @@ listen($socket,5)
 	or die("listen:$!");
 
 my $string="";
-until($string eq "exit"){
+until(0){
 	accept(my $newsock,$socket)
 		or die("accept:$!");
-	$newsock->autoflush(1);
-	while($string=decode("utf8",<$newsock>)){
-		$string=~s/\s*$//;
-		if($string eq "exit"){
-			last;
+	if(!fork){
+		$newsock->autoflush(1);
+		while($string=decode("utf8",<$newsock>)){
+			$string=~s/\s*$//;
+			if($string eq "exit"){
+				last;
+			}
+			print encode "utf8", "$string\n";
+			print $newsock encode("utf8", uc "$string\n");
 		}
-		print encode "utf8", "$string\n";
-		print $newsock encode("utf8", uc "$string\n");
+		close $newsock;
+		exit;
 	}
-	close $newsock;
 }
-close $socket;
+sub handler(){
+	close $socket;
+	exit;
+}
