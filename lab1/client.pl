@@ -16,16 +16,12 @@ connect($socket, $sockaddr)
 
 $socket->autoflush(1);
 
-while(my $line=<>){
-	print $socket $line
-		or last;
-	$line=<$socket>;
-		
-	if(defined $line){
-		print $line;
-	}else{
-		last;
-	}
+my $line=<>;
+print $socket $line;
+$line=<$socket>;
+	
+if(defined $line){
+	print $line;
 }
 
 close $socket;

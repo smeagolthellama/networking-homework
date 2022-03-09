@@ -19,7 +19,7 @@ listen($socket,5)
 	or die("listen:$!");
 
 my $string="";
-until($string eq "exit"){
+until(defined $string && $string eq "exit"){
 	accept(my $newsock,$socket)
 		or die("accept:$!");
 	$newsock->autoflush(1);
