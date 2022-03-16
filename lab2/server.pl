@@ -42,7 +42,7 @@ until(0){
 					$status_code="200";
 					$reason_phrase="ok";
 					binmode $f;
-					$message_body=do(local $/;<$f>);#slurp entire file, not line by line.
+					$message_body=do{local $/; <$f>};#slurp entire file, not line by line.
 				}else{
 					$status_code="404";
 					$reason_phrase="not found.";
