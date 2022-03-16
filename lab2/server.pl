@@ -25,18 +25,43 @@ until(0){
 		or die("accept:$!");
 	if(!fork){
 		$newsock->autoflush(1);
-		while($string=decode("utf8",<$newsock>)){
-			$string=~s/\s*$//;
-			if($string eq "exit"){
-				last;
+		if($string=decode("utf8",<$newsock>)){
+			my @fields=split ' ',$string;
+
+			my $method=$fields[0];
+			my $request_URI='.'.$fields[1];
+			my $HTTP_version=$fields[2];
+			my $status_code=500;
+			my $reason_phrase="internal error";
+			my $message_body="";
+
+			print "method: $method\n request_URI: $request_URI\n HTTP_version: $HTTP_version\n";
+
+			if($method=~/GET/i){
+				if(open(my $f,"<",$request_URI)){
+				
+				}else{
+					$status_code="404";
+					$reason_phrase="not found.";
+					$message_body="<html><title>404 not found</title><body><h1>404 Not Found error</h1></body></html>"
+				}
+			}elsif($method=~/HEAD/i){
+
 			}
+
+			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase."\r\n";
+
 			print encode "utf8", "$string\n";
 			print $newsock encode("utf8", uc "$string\n");
+
 		}
 		close $newsock;
 		exit;
 	}
 }
+
+sub get(){}
+
 sub handler(){
 	close $socket;
 	exit;
