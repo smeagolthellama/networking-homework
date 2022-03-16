@@ -39,7 +39,10 @@ until(0){
 
 			if($method=~/GET/i){
 				if(open(my $f,"<",$request_URI)){
-				
+					$status_code="200";
+					$reason_phrase="ok";
+					binmode $f;
+					$message_body=do(local $/;<$f>);#slurp entire file, not line by line.
 				}else{
 					$status_code="404";
 					$reason_phrase="not found.";
@@ -49,7 +52,7 @@ until(0){
 
 			}
 
-			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase."\r\n";
+			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase."\r\n".$message_body;
 
 			print encode "utf8", "$string\n";
 			print $newsock encode("utf8", uc "$string\n");
