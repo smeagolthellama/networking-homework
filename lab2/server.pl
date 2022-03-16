@@ -24,7 +24,6 @@ until(0){
 	accept(my $newsock,$socket)
 		or die("accept:$!");
 	if(!fork){
-		$newsock->autoflush(1);
 		if($string=decode("utf8",<$newsock>)){
 			my @fields=split ' ',$string;
 
@@ -34,25 +33,39 @@ until(0){
 			my $status_code=500;
 			my $reason_phrase="internal error";
 			my $message_body="";
+			my $response_headers="";
+			my $request_headers="";
 
 			print "method: $method\n request_URI: $request_URI\n HTTP_version: $HTTP_version\n";
 
-			if($method=~/GET/i){
+			if($method=~/GET/i or $method=~/HEAD/i){
 				if(open(my $f,"<",$request_URI)){
 					$status_code="200";
 					$reason_phrase="ok";
 					binmode $f;
 					$message_body=do{local $/; <$f>};#slurp entire file, not line by line.
+					$response_headers.="\r\nContent-Length: ".length($message_body);
 				}else{
 					$status_code="404";
 					$reason_phrase="not found.";
-					$message_body="<html><title>404 not found</title><body><h1>404 Not Found error</h1></body></html>"
+					$message_body="<html><title>404 not found</title><body><h1>404 Not Found error</h1></body></html>";
+					$response_headers.="\r\nContent-Length: ".length($message_body);
 				}
-			}elsif($method=~/HEAD/i){
-
+			}else{
+				$status_code="405";
+				$reason_phrase="method not allowed.";
+				$message_body="<html><body><h1>Method not allowed</h1></body></html>";
 			}
 
-			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase."\r\n".$message_body;
+			if($method=~/HEAD/i){
+				$message_body="";
+			}
+
+			if($response_headers ne ""){
+				$response_headers.="\r\n";
+			}
+
+			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase.$response_headers."\r\n".$message_body;
 
 			print encode "utf8", "$string\n";
 			print $newsock encode("utf8", "$string\n");
