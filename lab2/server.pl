@@ -55,7 +55,7 @@ until(0){
 			$string=$HTTP_version.' '.$status_code.' '.$reason_phrase."\r\n".$message_body;
 
 			print encode "utf8", "$string\n";
-			print $newsock encode("utf8", uc "$string\n");
+			print $newsock encode("utf8", "$string\n");
 
 		}
 		close $newsock;
