@@ -70,7 +70,7 @@ package body connection is
 						Set(w,c_socket);
 						Check_Selector(selector,r,w,status,1.0);
 						if Is_Set(w, c_socket) and status=Completed then
-							String'Output(data_stream,To_String(message));
+                        String'Output(data_stream,To_String(message));
 						else
 							send_msg.set(message);
 							requeue send_message;
@@ -86,8 +86,8 @@ package body connection is
                      S: constant String:=String'Input(data_stream); 
 						begin
 							message:=To_Bounded_String(S);
-						end;
-						recv_msg.set(message);
+                  end;
+                  send_message(message);
 					end if;
 				end select;
 			end loop;
