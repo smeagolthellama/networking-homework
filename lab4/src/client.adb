@@ -36,7 +36,11 @@ begin
       return;
    end if;
    Create_Socket(socket);
-   addr.Addr:=Addresses(Get_Host_By_Name(Argument(1)),1);
+   if Is_IPv4_Address(Argument(1)) or Is_IPv6_Address(Argument(1)) then
+      addr.Addr:=Inet_Addr(Argument(1));
+   else
+      addr.Addr:=Addresses(Get_Host_By_Name(Argument(1)),1);
+   end if;
    addr.Port:=Port_Type'val(7777);
    Connect_Socket(socket,addr);
    read_loop.start;
