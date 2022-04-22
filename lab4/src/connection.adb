@@ -37,7 +37,7 @@ package body connection is
          end get;
       end data;
       
-      send_msg, recv_msg: data;
+      send_msg: data;
       
       name: Bounded_String:=To_Bounded_String("anonymous chatter");
       
@@ -90,9 +90,9 @@ package body connection is
                Empty(r);
                Empty(w);
                Set(r,c_socket);
-               Put_Line("Checking if socket has readable data.");
+               -- Put_Line("Checking if socket has readable data.");
                Check_Selector(selector,r,w,status,0.1);
-               Put_Line("Check_Selector finished");
+               -- Put_Line("Check_Selector finished");
                if Is_Set(r, c_socket) and status=Completed then
                   Put_Line("Socket has readable data. Reading.");
                   -- can read from c_socket
@@ -102,9 +102,80 @@ package body connection is
                      Put_Line("Read '"&S&"'.");
                      message:=To_Bounded_String(S);
                   end;
-                  Put_Line("Attempting to send the message to everyone.");
-                  send_message(message);
-                  Put_Line("Sent message.");
+                  if Length(message)/=0 then                     
+                     if To_String(message)(1)='/' and Length(message)>=4 then
+                        Put_Line("command detected.");
+                        case To_String(message)(2) is
+                        when 'n' =>
+                           Put_Line("name change detected.");
+                           Put_Line("getting old name.");
+                           declare
+                              old_name: constant Bounded_String:=name;
+                           begin                         
+                              Put_Line("Old name is "&To_String(name));
+                              Put_Line("Getting new name.");
+                              if To_String(message)(3)=' ' then
+                                 name:=To_Bounded_String(Slice(message,4,Length(message)));
+                              else
+                                 name:=To_Bounded_String(Slice(message,3,Length(message)));
+                              end if;
+                              
+                              Put_Line("New name is '"&To_String(name)&"'");
+                              Put_Line("Adding self under new name: get self");
+                              declare
+                                 cli: constant client_ref:=connections(To_String(old_name));
+                              begin
+                                 Put_Line("Got self ("&Image(cli => cli.all)&").");
+                                 Put_Line("Including copy of self in connections.");
+                                 connections.Include(To_String(name),cli);
+                                 Put_Line("Included.");
+                              end;
+                              Put_Line("removing self under old name.");
+                              connections.Delete(To_String(old_name));
+                              Put_Line("Done. Notifying other clients of this change.");
+                              send_message(old_name&" is now known as '"&name&"'.");
+                              Put_Line("Notification sent.");
+                           end;
+                        when 't' =>
+                           if To_String(message)(3)=' ' then
+                              message:=To_Bounded_String(Slice(message,4,Length(message)));
+                           else
+                              message:=To_Bounded_String(Slice(message,3,Length(message)));
+                           end if;
+                           Put_Line("private message detected.");
+                           declare
+                              end_of_name: constant Natural:=Index(message," ");
+                              to_name: constant String:=Slice(message,1,end_of_name-1);
+                           begin
+                              Put_Line("message is to '"&to_name&"'.");
+                              if connections.Contains(to_name) then
+                                 declare
+                                    target: constant client_ref:=connections(to_name);
+                                    priv_mesg: constant String:=Slice(message,end_of_name,Length(message));
+                                 begin
+                                    target.all.wrangler.send("private message from "&name&" : "&priv_mesg);
+                                 end;
+                              else
+                                 Put_Line("No such client.");
+                                 declare
+                                    target: constant client_ref:=connections(To_String(name));
+                                 begin
+                                    target.all.wrangler.send(To_Bounded_String("No such person as '"&to_name&"'."));
+                                 end;
+                                 
+                              end if;                              
+                           end;                           
+                        when others =>
+                           Put_Line("Attempting to send the message to everyone.");               
+                           send_message(name&" says: "&message);
+                           Put_Line("Sent message.");
+                        end case;
+                     else
+                        Put_Line("Attempting to send the message to everyone.");               
+                        send_message(name&" says: "&message);
+                        Put_Line("Sent message.");
+                     end if;
+                  end if;                  
                end if;
             end select;
          end loop;
@@ -112,8 +183,9 @@ package body connection is
       
    begin
       Put_Line("client_wrangler task spawned. waiting to start.");
-      accept start(sock: Socket_Type) do
+      accept start(sock: Socket_Type; name: String) do
          client_wrangler.socket:=sock;
+         client_wrangler.name:=To_Bounded_String(name);
       end start;
       Put_Line("Got socket. starting communicate task.");
       communicate.comm_start(socket);
@@ -126,36 +198,7 @@ package body connection is
             end;
             Put_Line("client_wrangler with socket " & Image(Socket => socket) &
                        " dispatching send_message entry to communicate task.");
-            communicate.send_message;           
-         or
-            accept recv(msg: out Bounded_String) do
-               select
-                  delay 0.01;
-                  msg:=Null_Bounded_String;
-               then abort
-                  declare
-                     cnt: Natural;
-                     ind: Natural;
-                     msg_in: Bounded_String;
-                  begin
-                     recv_msg.get(msg_in);
-                     cnt:=msg_Str.count(msg_in,To_String(Null_Bounded_String&Character'val(0)));
-                     for I in 1..cnt loop
-                        ind:=index(msg_in,To_String(Null_Bounded_String&Character'val(0)));
-                        if To_String(msg_in)(1)='/' then
-                           -- TODO: if character 2 is 'n': rename user to first word, ignoring rest of line.
-                           -- if character 2 is 't': first word is user to send message to. rest is message.
-                           if To_String(msg_in)(2)='n' then
-                              name:=To_Bounded_String(Slice(msg_in,3,ind-1));                              
-                           end if;
-                        else
-                           Append(msg, Null_Bounded_String & name&":"&Slice(msg_in,1,ind-1));
-                        end if;
-                        msg_in:=To_Bounded_String(Slice(msg_in,ind+1,Length(msg_in)));
-                     end loop;
-                  end;
-               end select;
-            end;
+            communicate.send_message;               
          or
             terminate;
          end select;
@@ -164,15 +207,15 @@ package body connection is
    
    
    
-   procedure new_connection(sock: Socket_Type) 
+   procedure new_connection(sock: Socket_Type; name: String) 
    is
       cli: constant	client_ref:=new client;
    begin
       Put_Line("Made new client.");
       cli.all.sock:=sock;
-      connections.Include(Image(cli),cli);
+      connections.Include(name,cli);
       Put_Line("Added client to client list. Starting client connection...");
-      cli.all.wrangler.start(sock);
+      cli.all.wrangler.start(sock,name);
       Put_Line("Client connection started. Gave client socket "&Image(sock));
    end;
    
@@ -182,9 +225,25 @@ package body connection is
    begin
       Put_Line("Sending message '"&To_String(msg)&"' to all connections.");
       for conn of connections loop
-         Put_Line("sending message to connection "&Image(conn.all));
-         conn.all.wrangler.send(msg);
-         Put_Line("Sent message to "&Image(conn.all));
+         declare
+            task send is
+               entry start(con: client_ref);
+            end send;
+            
+            task body send is
+               c: client_ref;
+            begin
+               accept start(con: client_ref) do
+                  c:=con;
+               end start;
+               
+               Put_Line("sending message to connection "&Image(c.all));
+               c.all.wrangler.send(msg);
+               Put_Line("Sent message to "&Image(c.all));
+            end send;
+         begin
+            send.start(conn);
+         end;
       end loop;
       Put_Line("Done.");
    end;

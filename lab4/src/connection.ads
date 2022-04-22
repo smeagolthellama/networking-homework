@@ -9,9 +9,8 @@ package connection is
    use msg_str;
 
    task type client_wrangler is
-      entry start(sock: Socket_Type);
+      entry start(sock: Socket_Type; name: String);
       entry send(msg: Bounded_String);
-      entry recv(msg: out Bounded_String);
    end client_wrangler;
 
    type client is record
@@ -32,7 +31,7 @@ package connection is
 
    connections: Map;
 
-   procedure new_connection(sock: Socket_Type);
+   procedure new_connection(sock: Socket_Type; name: String);
 
    procedure send_message(msg: Bounded_String);
 
