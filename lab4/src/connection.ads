@@ -1,6 +1,7 @@
 with GNAT.Sockets; use GNAT.Sockets;
-with Ada.Containers.Vectors;
+with Ada.Containers.Indefinite_Hashed_Maps;
 with Ada.Strings.Bounded;
+with Ada.Strings.Hash;
 
 package connection is
    package msg_str is new
@@ -20,13 +21,16 @@ package connection is
 
    type client_ref is access client;
 
-   package Connection_Vectors is new
-     Ada.Containers.Vectors
-       (Index_Type	=>	Natural,
-		 Element_Type	=>	client_ref);
-   use Connection_Vectors;
+   package Connection_Maps is new
+     Ada.Containers.Indefinite_Hashed_Maps
+       (Key_Type	=>	String,
+        Element_Type	=>	client_ref,
+        Hash => Ada.Strings.Hash,
+        Equivalent_Keys => "="
+       );
+   use Connection_Maps;
 
-   connections: Vector;
+   connections: Map;
 
    procedure new_connection(sock: Socket_Type);
 

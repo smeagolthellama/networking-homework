@@ -170,7 +170,7 @@ package body connection is
    begin
       Put_Line("Made new client.");
       cli.all.sock:=sock;
-      connections.append(cli);
+      connections.Include(Image(cli),cli);
       Put_Line("Added client to client list. Starting client connection...");
       cli.all.wrangler.start(sock);
       Put_Line("Client connection started. Gave client socket "&Image(sock));
