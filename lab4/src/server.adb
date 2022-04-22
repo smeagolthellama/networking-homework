@@ -20,9 +20,9 @@ Begin
          Accept_Socket(socket,new_sock,new_addr);
          Put_Line("new connection from "& Image(new_addr));
          Put_Line("Connecting client...");
-         connection.new_connection(new_sock);
+         connection.new_connection(new_sock,Image(new_addr));
          Put_Line("Sending arrival notice to all conencted clients.");
-         connection.send_message(connection.msg_str.To_Bounded_String("new person joined from "& Image(new_addr) &"."));
+         connection.send_message(connection.msg_str.To_Bounded_String(Image(new_addr) &" joined."));
          Put_Line("Sent!");
       end;
    end loop;
