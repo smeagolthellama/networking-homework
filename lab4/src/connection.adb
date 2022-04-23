@@ -155,22 +155,35 @@ package body connection is
                            Put_Line("private message detected.");
                            declare
                               end_of_name: constant Natural:=Index(message," ");
-                              to_name: constant String:=Slice(message,1,end_of_name-1);
                            begin
-                              Put_Line("message is to '"&to_name&"'.");
-                              if connections.Contains(to_name) then
+                              if end_of_name/=0 then                                 
                                  declare
-                                    target: constant client_ref:=connections(to_name);
-                                    priv_mesg: constant String:=Slice(message,end_of_name,Length(message));
+                                    to_name: constant String:=Slice(message,1,end_of_name-1);
                                  begin
-                                    target.all.wrangler.send("private message from "&name&" : "&priv_mesg);
+                                    Put_Line("message is to '"&to_name&"'.");
+                                    if connections.Contains(to_name) then
+                                       declare
+                                          target: constant client_ref:=connections(to_name);
+                                          priv_mesg: constant String:=Slice(message,end_of_name,Length(message));
+                                       begin
+                                          target.all.wrangler.send("private message from "&name&" : "&priv_mesg);
+                                       end;
+                                    else
+                                       Put_Line("No such client.");
+                                       declare
+                                          target: constant client_ref:=connections(To_String(name));
+                                       begin
+                                          target.all.wrangler.send(To_Bounded_String("No such person as '"&to_name&"'."));
+                                       end;
+                                       
+                                    end if;                              
                                  end;
                               else
-                                 Put_Line("No such client.");
+                                 Put_Line("invalid syntax in private message request.");
                                  declare
                                     target: constant client_ref:=connections(To_String(name));
                                  begin
-                                    target.all.wrangler.send(To_Bounded_String("No such person as '"&to_name&"'."));
+                                    target.all.wrangler.send(To_Bounded_String("Invalid syntax. Usage: /t [name] [message]"));
                                  end;
                                  
                               end if;                              
