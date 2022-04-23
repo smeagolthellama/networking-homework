@@ -145,7 +145,7 @@ package body connection is
                                     end;
                                     name:=old_name;
                                  else
-                                 Put_Line("New name is '"&To_String(name)&"'");
+                                    Put_Line("New name is '"&To_String(name)&"'");
                                     Put_Line("Adding self under new name: get self");
                                     declare
                                        cli: constant client_ref:=connections(To_String(old_name));
@@ -156,7 +156,7 @@ package body connection is
                                        Put_Line("Included.");
                                     end;
                                     Put_Line("removing self under old name.");
-                                 connections.Delete(To_String(old_name));
+                                    connections.Delete(To_String(old_name));
                                     Put_Line("Done. Notifying other clients of this change.");
                                     send_message("'"&old_name&"' is now known as '"&name&"'.");
                                     Put_Line("Notification sent.");
