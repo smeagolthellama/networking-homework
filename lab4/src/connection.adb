@@ -97,21 +97,31 @@ package body connection is
                if Is_Set(r, c_socket) and status=Completed then
                   Put_Line("Socket has readable data. Reading.");
                   -- can read from c_socket
-                  select
+                  declare 
+                     request: Request_Type(Name=>N_Bytes_To_Read);
+                  begin
+                     Control_Socket(c_socket,request);
+                     Put_Line("N_Byetes_To_Read says "&request.Size'Image);
+                     if request.Size=0 then
+                        raise Timeout;
+                     end if;
+                  end;
+                  select 
                      delay 1.0;
                      raise Timeout;
                   then abort
                      declare
-                        S: constant String:=String'Input(data_stream); 
+                        my_S: constant String:=String'Input(data_stream); 
+                        S: constant Bounded_String:=To_Bounded_String(my_S);
                      begin
-                        Put_Line("Read '"&S&"'.");
-                        message:=To_Bounded_String(S);
+                        Put_Line("Read '"&To_String(S)&"'.");
+                        message:=S;
                      end;
                   end select;
                   if Length(message)/=0 then                     
                      if To_String(message)(1)='/' and Length(message)>=4 then
                         Put_Line("command detected.");
-                           case To_String(message)(2) is
+                        case To_String(message)(2) is
                            when 'n' =>
                               Put_Line("name change detected.");
                               Put_Line("getting old name.");
@@ -128,14 +138,14 @@ package body connection is
                                  end if;
                                  
                                  if connections.Contains(To_String(name)) then
-                                    declare
+                                 declare
                                        target: constant client_ref:=connections(To_String(old_name));
                                     begin
                                        target.all.wrangler.send("Name taken: '"&name&"'.");
                                     end;
                                     name:=old_name;
                                  else
-                                    Put_Line("New name is '"&To_String(name)&"'");
+                                 Put_Line("New name is '"&To_String(name)&"'");
                                     Put_Line("Adding self under new name: get self");
                                     declare
                                        cli: constant client_ref:=connections(To_String(old_name));
@@ -146,7 +156,7 @@ package body connection is
                                        Put_Line("Included.");
                                     end;
                                     Put_Line("removing self under old name.");
-                                    connections.Delete(To_String(old_name));
+                                 connections.Delete(To_String(old_name));
                                     Put_Line("Done. Notifying other clients of this change.");
                                     send_message("'"&old_name&"' is now known as '"&name&"'.");
                                     Put_Line("Notification sent.");
@@ -243,15 +253,10 @@ package body connection is
       exception
          when Timeout =>
             Put_Line("Write timed out. Client disconnected.");
-            declare
-               target: constant client_ref:=connections(To_String(name));
-            begin
-               target.all.wrangler.send(To_Bounded_String("Leaving server..."));
-            end;
             Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
             Close_Socket(Socket => socket);
             connections.Delete(To_String(name));
-            send_message(name&" left (conenction timed out).");
+            send_message(name&" left.");
       end communicate;
       
    begin
