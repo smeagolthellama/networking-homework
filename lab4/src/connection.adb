@@ -185,9 +185,20 @@ package body connection is
                                  begin
                                     target.all.wrangler.send(To_Bounded_String("Invalid syntax. Usage: /t [name] [message]"));
                                  end;
-                                 
-                              end if;                              
-                           end;                           
+
+                              end if;
+                           end;
+
+                        when 'q' =>
+                           declare
+                              target: constant client_ref:=connections(To_String(name));
+                           begin
+                              target.all.wrangler.send(To_Bounded_String("Leaving server..."));
+                           end;
+                           Shutdown_Socket(Socket => socket; How=> Shut_Read_Write);
+                           Close_Socket(Socket => socket);
+                           connections.Delete(To_String(name));
+                           send_message(name&" left.");
                         when others =>
                            Put_Line("Attempting to send the message to everyone.");               
                            send_message(name&" says: "&message);
