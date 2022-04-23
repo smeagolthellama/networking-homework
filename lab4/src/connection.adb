@@ -1,3 +1,4 @@
+with Ada.Characters.Latin_1;
 with Ada.Strings; use Ada.Strings;
 with Ada.Text_IO; use Ada.Text_IO;
 
@@ -56,6 +57,7 @@ package body connection is
          r, w: Socket_Set_Type;
          status: Selector_Status;
          message: Bounded_String;
+         Timeout: Exception;
       begin
          Put_Line("communicate task spawned. waiting to start.");
          accept comm_start(sock: Socket_Type) do
@@ -81,8 +83,7 @@ package body connection is
                      String'Output(data_stream,To_String(message));
                      Put_Line("sent message.");
                   else
-                     send_msg.set(message);
-                     requeue send_message;
+                     raise Timeout;
                   end if;
                end send_message;
             else
@@ -96,114 +97,140 @@ package body connection is
                if Is_Set(r, c_socket) and status=Completed then
                   Put_Line("Socket has readable data. Reading.");
                   -- can read from c_socket
-                  declare
-                     S: constant String:=String'Input(data_stream); 
-                  begin
-                     Put_Line("Read '"&S&"'.");
-                     message:=To_Bounded_String(S);
-                  end;
+                  select
+                     delay 1.0;
+                     raise Timeout;
+                  then abort
+                     declare
+                        S: constant String:=String'Input(data_stream); 
+                     begin
+                        Put_Line("Read '"&S&"'.");
+                        message:=To_Bounded_String(S);
+                     end;
+                  end select;
                   if Length(message)/=0 then                     
                      if To_String(message)(1)='/' and Length(message)>=4 then
                         Put_Line("command detected.");
-                        case To_String(message)(2) is
-                        when 'n' =>
-                           Put_Line("name change detected.");
-                           Put_Line("getting old name.");
-                           declare
-                              old_name: constant Bounded_String:=name;
-                           begin                         
-                              Put_Line("Old name is "&To_String(name));
-
-                              Put_Line("Getting new name.");
+                           case To_String(message)(2) is
+                           when 'n' =>
+                              Put_Line("name change detected.");
+                              Put_Line("getting old name.");
+                              declare
+                                 old_name: constant Bounded_String:=name;
+                              begin                         
+                                 Put_Line("Old name is "&To_String(name));
+                                 
+                                 Put_Line("Getting new name.");
+                                 if To_String(message)(3)=' ' then
+                                    name:=To_Bounded_String(Slice(message,4,Length(message)));
+                                 else
+                                    name:=To_Bounded_String(Slice(message,3,Length(message)));
+                                 end if;
+                                 
+                                 if connections.Contains(To_String(name)) then
+                                    declare
+                                       target: constant client_ref:=connections(To_String(old_name));
+                                    begin
+                                       target.all.wrangler.send("Name taken: '"&name&"'.");
+                                    end;
+                                    name:=old_name;
+                                 else
+                                    Put_Line("New name is '"&To_String(name)&"'");
+                                    Put_Line("Adding self under new name: get self");
+                                    declare
+                                       cli: constant client_ref:=connections(To_String(old_name));
+                                    begin
+                                       Put_Line("Got self ("&Image(cli => cli.all)&").");
+                                       Put_Line("Including copy of self in connections.");
+                                       connections.Include(To_String(name),cli);
+                                       Put_Line("Included.");
+                                    end;
+                                    Put_Line("removing self under old name.");
+                                    connections.Delete(To_String(old_name));
+                                    Put_Line("Done. Notifying other clients of this change.");
+                                    send_message("'"&old_name&"' is now known as '"&name&"'.");
+                                    Put_Line("Notification sent.");
+                                 end if;
+                              end;
+                           when 't' =>
                               if To_String(message)(3)=' ' then
-                                 name:=To_Bounded_String(Slice(message,4,Length(message)));
+                                 message:=To_Bounded_String(Slice(message,4,Length(message)));
                               else
-                                 name:=To_Bounded_String(Slice(message,3,Length(message)));
+                                 message:=To_Bounded_String(Slice(message,3,Length(message)));
                               end if;
+                              Put_Line("private message detected.");
+                              declare
+                                 end_of_name: constant Natural:=Index(message," ");
+                              begin
+                                 if end_of_name/=0 then                                 
+                                    declare
+                                       to_name: constant String:=Slice(message,1,end_of_name-1);
+                                    begin
+                                       Put_Line("message is to '"&to_name&"'.");
+                                       if connections.Contains(to_name) then
+                                          declare
+                                             target: constant client_ref:=connections(to_name);
+                                             priv_mesg: constant String:=Slice(message,end_of_name,Length(message));
+                                          begin
+                                             target.all.wrangler.send("private message from "&name&" : "&priv_mesg);
+                                          end;
+                                       else
+                                          Put_Line("No such client.");
+                                          declare
+                                             target: constant client_ref:=connections(To_String(name));
+                                          begin
+                                             target.all.wrangler.send(To_Bounded_String("No such person as '"&to_name&"'."));
+                                          end;
+                                          
+                                       end if;                              
+                                    end;
+                                 else
+                                    Put_Line("invalid syntax in private message request.");
+                                    declare
+                                       target: constant client_ref:=connections(To_String(name));
+                                    begin
+                                       target.all.wrangler.send(To_Bounded_String("Invalid syntax. Usage: /t [name] [message]"));
+                                    end;
+                                    
+                                 end if;
+                              end;
                               
-                              if connections.Contains(To_String(name)) then
-                                 declare
-                                    target: constant client_ref:=connections(To_String(old_name));
+                           when 'q' =>
+                              declare
+                                 target: constant client_ref:=connections(To_String(name));
+                              begin
+                                 target.all.wrangler.send(To_Bounded_String("Leaving server..."));
+                              end;
+                              Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
+                              Close_Socket(Socket => socket);
+                              connections.Delete(To_String(name));
+                              send_message(name&" left.");
+                           when 'u'|'w' =>
+                              declare
+                                 task get_user_list is
+                                    entry start;
+                                 end get_user_list;
+                                 task body get_user_list is
                                  begin
-                                    target.all.wrangler.send("Name taken: '"&name&"'.");
-                                 end;
-                                 name:=old_name;
-                              else
-                                 Put_Line("New name is '"&To_String(name)&"'");
-                                 Put_Line("Adding self under new name: get self");
-                                 declare
-                                    cli: constant client_ref:=connections(To_String(old_name));
-                                 begin
-                                    Put_Line("Got self ("&Image(cli => cli.all)&").");
-                                    Put_Line("Including copy of self in connections.");
-                                    connections.Include(To_String(name),cli);
-                                    Put_Line("Included.");
-                                 end;
-                                 Put_Line("removing self under old name.");
-                                 connections.Delete(To_String(old_name));
-                                 Put_Line("Done. Notifying other clients of this change.");
-                                 send_message("'"&old_name&"' is now known as '"&name&"'.");
-                                 Put_Line("Notification sent.");
-                              end if;
-                           end;
-                        when 't' =>
-                           if To_String(message)(3)=' ' then
-                              message:=To_Bounded_String(Slice(message,4,Length(message)));
-                           else
-                              message:=To_Bounded_String(Slice(message,3,Length(message)));
-                           end if;
-                           Put_Line("private message detected.");
-                           declare
-                              end_of_name: constant Natural:=Index(message," ");
-                           begin
-                              if end_of_name/=0 then                                 
-                                 declare
-                                    to_name: constant String:=Slice(message,1,end_of_name-1);
-                                 begin
-                                    Put_Line("message is to '"&to_name&"'.");
-                                    if connections.Contains(to_name) then
-                                       declare
-                                          target: constant client_ref:=connections(to_name);
-                                          priv_mesg: constant String:=Slice(message,end_of_name,Length(message));
-                                       begin
-                                          target.all.wrangler.send("private message from "&name&" : "&priv_mesg);
-                                       end;
-                                    else
-                                       Put_Line("No such client.");
-                                       declare
-                                          target: constant client_ref:=connections(To_String(name));
-                                       begin
-                                          target.all.wrangler.send(To_Bounded_String("No such person as '"&to_name&"'."));
-                                       end;
-                                       
-                                    end if;                              
-                                 end;
-                              else
-                                 Put_Line("invalid syntax in private message request.");
-                                 declare
-                                    target: constant client_ref:=connections(To_String(name));
-                                 begin
-                                    target.all.wrangler.send(To_Bounded_String("Invalid syntax. Usage: /t [name] [message]"));
-                                 end;
-
-                              end if;
-                           end;
-
-                        when 'q' =>
-                           declare
-                              target: constant client_ref:=connections(To_String(name));
-                           begin
-                              target.all.wrangler.send(To_Bounded_String("Leaving server..."));
-                           end;
-                           Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
-                           Close_Socket(Socket => socket);
-                           connections.Delete(To_String(name));
-                           send_message(name&" left.");
-                        when others =>
-                           Put_Line("Attempting to send the message to everyone.");               
-                           send_message(name&" says: "&message);
-                           Put_Line("Sent message.");
-                        end case;
+                                    accept start;
+                                    declare
+                                       me: constant client_ref:=connections(To_String(name));
+                                       msg: Bounded_String:=To_Bounded_String("User list:");
+                                    begin
+                                       for con in connections.Iterate loop
+                                          msg:=msg&Ada.Characters.Latin_1.LF&Key(con);
+                                       end loop;
+                                       me.all.wrangler.send(msg);
+                                    end;   
+                                 end get_user_list;
+                              begin
+                                 get_user_list.start;
+                              end;
+                           when others =>
+                              Put_Line("Attempting to send the message to everyone.");               
+                              send_message(name&" says: "&message);
+                              Put_Line("Sent message.");
+                           end case;
                      else
                         Put_Line("Attempting to send the message to everyone.");               
                         send_message(name&" says: "&message);
@@ -213,6 +240,18 @@ package body connection is
                end if;
             end select;
          end loop;
+      exception
+         when Timeout =>
+            Put_Line("Write timed out. Client disconnected.");
+            declare
+               target: constant client_ref:=connections(To_String(name));
+            begin
+               target.all.wrangler.send(To_Bounded_String("Leaving server..."));
+            end;
+            Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
+            Close_Socket(Socket => socket);
+            connections.Delete(To_String(name));
+            send_message(name&" left (conenction timed out).");
       end communicate;
       
    begin
