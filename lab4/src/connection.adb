@@ -113,6 +113,7 @@ package body connection is
                               old_name: constant Bounded_String:=name;
                            begin                         
                               Put_Line("Old name is "&To_String(name));
+
                               Put_Line("Getting new name.");
                               if To_String(message)(3)=' ' then
                                  name:=To_Bounded_String(Slice(message,4,Length(message)));
@@ -120,21 +121,30 @@ package body connection is
                                  name:=To_Bounded_String(Slice(message,3,Length(message)));
                               end if;
                               
-                              Put_Line("New name is '"&To_String(name)&"'");
-                              Put_Line("Adding self under new name: get self");
-                              declare
-                                 cli: constant client_ref:=connections(To_String(old_name));
-                              begin
-                                 Put_Line("Got self ("&Image(cli => cli.all)&").");
-                                 Put_Line("Including copy of self in connections.");
-                                 connections.Include(To_String(name),cli);
-                                 Put_Line("Included.");
-                              end;
-                              Put_Line("removing self under old name.");
-                              connections.Delete(To_String(old_name));
-                              Put_Line("Done. Notifying other clients of this change.");
-                              send_message(old_name&" is now known as '"&name&"'.");
-                              Put_Line("Notification sent.");
+                              if connections.Contains(To_String(name)) then
+                                 declare
+                                    target: constant client_ref:=connections(To_String(old_name));
+                                 begin
+                                    target.all.wrangler.send("Name taken: '"&name&"'.");
+                                 end;
+                                 name:=old_name;
+                              else
+                                 Put_Line("New name is '"&To_String(name)&"'");
+                                 Put_Line("Adding self under new name: get self");
+                                 declare
+                                    cli: constant client_ref:=connections(To_String(old_name));
+                                 begin
+                                    Put_Line("Got self ("&Image(cli => cli.all)&").");
+                                    Put_Line("Including copy of self in connections.");
+                                    connections.Include(To_String(name),cli);
+                                    Put_Line("Included.");
+                                 end;
+                                 Put_Line("removing self under old name.");
+                                 connections.Delete(To_String(old_name));
+                                 Put_Line("Done. Notifying other clients of this change.");
+                                 send_message("'"&old_name&"' is now known as '"&name&"'.");
+                                 Put_Line("Notification sent.");
+                              end if;
                            end;
                         when 't' =>
                            if To_String(message)(3)=' ' then
