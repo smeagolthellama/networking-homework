@@ -206,11 +206,7 @@ package body connection is
                               end;
                               
                            when 'q' =>
-                              declare
-                                 target: constant client_ref:=connections(To_String(name));
-                              begin
-                                 target.all.wrangler.send(To_Bounded_String("Leaving server..."));
-                              end;
+                              String'Output(data_stream,"Leaving server...");
                               Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
                               Close_Socket(Socket => socket);
                               connections.Delete(To_String(name));
