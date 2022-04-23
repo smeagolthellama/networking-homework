@@ -5,10 +5,15 @@ with connection;
 procedure server is
    socket: socket_Type;
    addr: Sock_Addr_Type;
+   opt: Option_Type;
 Begin
    Create_Socket(socket);
    addr.Addr:=Any_Inet_addr;
    addr.Port:=7777;
+   opt:=(Name=>Reuse_Address,Enabled=>True);
+   Set_Socket_Option(socket,IP_Protocol_For_IP_Level,opt);
+   opt:=(Name=>Keep_Alive,Enabled=>True);
+   Set_Socket_Option(socket,IP_Protocol_For_TCP_Level,opt);
    Bind_Socket(socket,addr);
    Listen_Socket(socket);
    loop
