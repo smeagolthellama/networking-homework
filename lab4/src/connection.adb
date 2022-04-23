@@ -232,6 +232,23 @@ package body connection is
                               begin
                                  get_user_list.start;
                               end;
+                           when 'm' =>
+                              
+                              declare
+                                 end_of_command: constant Natural :=Index(message," ");
+                              begin
+                                 if end_of_command/=0 then
+                                    message:=To_Bounded_String(Slice(message,end_of_command,Length(message)));
+                                    send_message(name&message);
+                                 else
+                                    declare
+                                       target: constant client_ref:=connections(To_String(name));
+                                    begin
+                                       target.all.wrangler.send(To_Bounded_String("Invalid Usage. Put a space between the command and the message."));
+                                    end;
+                                 end if;
+                              end;
+                              
                            when others =>
                               Put_Line("Attempting to send the message to everyone.");               
                               send_message(name&" says: "&message);
