@@ -195,7 +195,7 @@ package body connection is
                            begin
                               target.all.wrangler.send(To_Bounded_String("Leaving server..."));
                            end;
-                           Shutdown_Socket(Socket => socket; How=> Shut_Read_Write);
+                           Shutdown_Socket(Socket => socket, How=> Shut_Read_Write);
                            Close_Socket(Socket => socket);
                            connections.Delete(To_String(name));
                            send_message(name&" left.");
