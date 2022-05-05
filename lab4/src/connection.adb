@@ -211,6 +211,7 @@ package body connection is
                               Close_Socket(Socket => socket);
                               connections.Delete(To_String(name));
                               send_message(name&" left.");
+                              exit;
                            when 'u'|'w' =>
                               declare
                                  task get_user_list is
