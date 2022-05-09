@@ -51,8 +51,16 @@ procedure Server is
          row:=I;
       end Start;
       data_stream:=Stream(socket);
-      start_cplx:=(Re => -2.0,Im => get_imag(row-1));
-      end_cplx:=(Re => 2.0, Im=> get_imag(row));
+      Put_Line(Standard_Error,"calling get_imag function.");
+      start_cplx:=(-2.0,get_imag(row-1));
+      Put_Line(Standard_Error,"start_cplx:");
+      Put(Standard_Error,start_cplx);
+      Put_Line(Standard_Error,"");
+      end_cplx:=(0.4,get_imag(row));
+      Put_Line(Standard_Error,"end_cplx:");
+      Put(Standard_Error,end_cplx);
+      Put_Line(Standard_Error,"");
+      Put_Line(Standard_Error,"Sending numbers to client.");
       Complex'Output(data_stream,start_cplx);
       Complex'Output(data_stream,end_cplx);
       declare

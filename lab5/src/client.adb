@@ -27,8 +27,8 @@ begin
       start_cplx: constant Complex:=Complex'Input(data_stream);
       end_cplx: constant Complex:=Complex'Input(data_stream);
       index_cplx: Complex:=(-2.0,1.2);
-      diff_r_cplx: constant Complex:=(abs(start_cplx.Re-end_cplx.Re)/720.0,0.0);
-      diff_i_cplx: constant Complex:=(0.0,abs(start_cplx.Im-end_cplx.Im)/720.0);
+      diff_r_cplx: constant Complex:=(2.4/720.0,0.0);
+      diff_i_cplx: constant Complex:=(0.0,-2.4/720.0);
       count: Integer:=1;
       row_index: Integer;
       arr: My_Arr;
