@@ -148,17 +148,18 @@ begin
    declare
 
    begin
-      for I in 1..clientnum loop
-         declare
-            new_sock: Socket_Type;
-            new_addr: Sock_Addr_Type;
-            handle: handler;
-         begin
+      declare
+         new_sock: Socket_Type;
+         new_addr: Sock_Addr_Type;
+         handle: array (1..clientnum) of handler;
+      begin
+         for I in 1..clientnum loop
             Accept_Socket(socket,new_sock,new_addr);
             Put_Line("new connection from "&Image(new_addr));
-            handle.Start(new_sock,I);
-         end;
-      end loop;
+            Put_Line("get_imag is returning "&get_imag(I)'Image);
+            handle(I).Start(new_sock,I);
+         end loop;
+      end;
    end;
    declare
       mandel_mat: My_Mat;
