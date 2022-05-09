@@ -21,7 +21,7 @@ procedure Server is
    end;
 
    protected mandelbrot is
-      procedure add(I: My_Range; R: My_Arr);
+      procedure add(I: My_R_Range; R: My_Arr);
       entry get(set: out My_Mat);
    private
       matrix: My_Mat;
@@ -92,7 +92,7 @@ procedure Server is
                         can_read:=False;
                      else
                         declare
-                           ind: constant My_Range:=My_Range'Input(data_stream);
+                           ind: constant My_R_Range:=My_R_Range'Input(data_stream);
                            arr: constant My_Arr:=My_Arr'Input(data_stream);
                         begin
                            --Put_Line(Standard_Error,"Read "&My_Range'Image(ind)&"'th line of matrix.");
@@ -109,7 +109,7 @@ procedure Server is
 
 
    protected body mandelbrot is
-      procedure add(I: My_Range; R: My_Arr) is
+      procedure add(I: My_R_Range; R: My_Arr) is
       begin
          set_vals(I):=True;
          for J in R'Range loop

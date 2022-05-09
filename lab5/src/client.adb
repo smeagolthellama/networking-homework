@@ -60,13 +60,13 @@ begin
                z:=z**2+index_cplx;
                iter:=iter+1;
             end loop;
-            arr(My_Range(row_index)):=(Modulus(z)<=2.0);
+            arr(My_R_Range(row_index)):=(Modulus(z)<=2.0);
             index_cplx:=index_cplx+diff_r_cplx;
             --Put_Line("row_index is now "&row_index'Image);
             row_index:=row_index+1;
          end loop;
          Put_Line("Calculated line "&count'Image&". Sending it to the socket.");
-         My_Range'Output(data_stream,My_Range(count));
+         My_R_Range'Output(data_stream,My_R_Range(count));
          My_Arr'Output(data_stream,arr);
          count:=count+1;
          index_cplx:=index_cplx+diff_i_cplx;
