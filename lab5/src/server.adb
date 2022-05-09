@@ -105,7 +105,7 @@ begin
                      begin
                         Control_Socket(socket,request);
                         if request.Size=0 then
-                           Put_Line(Standard_Error,"Nothing to read from socket. Waiting.");
+                           Put_Line(Standard_Error,"Nothing to read from socket. Ending.");
                            can_read:=False;
                         else
                            declare
