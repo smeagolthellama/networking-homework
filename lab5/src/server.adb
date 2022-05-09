@@ -1,7 +1,7 @@
 with Ada.Text_IO; use Ada.Text_IO;
 with GNAT.Sockets; use GNAT.Sockets;
 with Ada.Command_Line; use Ada.Command_Line;
-with My_Types; use My_Types;
+with My_Types; use My_Types; use My_Types.m_c;
 
 procedure Server is
    socket: socket_Type;
@@ -44,12 +44,18 @@ begin
       task body handler is
          socket: Socket_Type;
          row: Integer;
+         start_cplx, end_cplx: Complex;
+         data_stream: Stream_Access;
       begin
-         accept Start do
+         accept Start(sock: Socket_Type; I: Integer) do
             socket:=sock;
             row:=I;
          end Start;
-
+         data_stream:=Stream(socket);
+         start_cplx:=Compose_From_Cartesian(Re => -1.0,Im => My_Float(row-1)/My_Float(720));
+         end_cplx:=Compose_From_Cartesian(Re => 1.0, Im=> My_Float(row)/My_Float(720));
+         Complex'Output(data_stream,start_cplx);
+         Complex'Output(data_stream,end_cplx);
       end;
 
    begin
@@ -57,9 +63,10 @@ begin
          declare
             new_sock: Socket_Type;
             new_addr: Sock_Addr_Type;
+            handle: handler;
          begin
             Accept_Socket(socket,new_sock,new_addr);
-            handler.Start(new_sock,I);
+            handle.Start(new_sock,I);
          end;
       end loop;
    end;
