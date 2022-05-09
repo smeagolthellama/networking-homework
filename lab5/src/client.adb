@@ -27,8 +27,8 @@ begin
       start_cplx: constant Complex:=Complex'Input(data_stream);
       end_cplx: constant Complex:=Complex'Input(data_stream);
       index_cplx: Complex:=(-2.0,1.2);
-      diff_r_cplx: constant Complex:=(4.0/720.0,0.0);
-      diff_i_cplx: constant Complex:=(0.0,-2.4/720.0);
+      diff_r_cplx: constant Complex:=(abs(start_cplx.Re-end_cplx.Re)/720.0,0.0);
+      diff_i_cplx: constant Complex:=(0.0,abs(start_cplx.Im-end_cplx.Im)/720.0);
       count: Integer:=1;
       row_index: Integer;
       arr: My_Arr;
@@ -41,8 +41,12 @@ begin
       Put_Line(Standard_Error, "got end position: ");
       Put(Standard_Error,end_cplx);
       Put_Line(Standard_Error,"");
+      Put(Standard_Error,"dRe=");
+      Put(Standard_Error,diff_r_cplx);
+      Put(Standard_Error,"dIm=");
+      Put(Standard_Error,diff_i_cplx);
       -- find the points within the rectangle given.
-      while index_cplx.Im>start_cplx.Im loop
+      while index_cplx.Im+diff_i_cplx.Im>start_cplx.Im loop
          index_cplx:=index_cplx+diff_i_cplx;
          count:=count+1;
       end loop;
