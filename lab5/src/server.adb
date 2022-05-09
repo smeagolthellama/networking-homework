@@ -28,6 +28,9 @@ procedure Server is
       set_vals: My_Arr:=(others=>False);
    end;
 
+   function get_imag (I:My_Range) return My_Float is
+     (1.2*(-2.0*(My_Float(I)/My_Float(clientnum))+1.0)) with Inline;
+
    task type handler is
       entry Start(sock: Socket_Type; I: My_Range);
    end handler;
@@ -37,14 +40,6 @@ procedure Server is
       row: My_Range;
       start_cplx, end_cplx: Complex;
       data_stream: GNAT.Sockets.Stream_Access;
-
-      function get_imag (I:My_Range) return My_Float is
-         x: constant My_Float:=My_Float(I);
-         c: constant My_Float:=My_Float(clientnum);
-      begin
-            return 1.2*(-2.0*(x/c)+1.0);
-      end get_imag;
-
    begin
       Put_Line(Standard_Error,"instanced handler");
       accept Start(sock: Socket_Type; I: My_Range) do
