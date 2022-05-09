@@ -28,12 +28,90 @@ procedure Server is
       set_vals: My_Arr:=(others=>False);
    end;
 
+   task type handler is
+      entry Start(sock: Socket_Type; I: My_Range);
+   end handler;
+
+   task body handler is
+      socket: Socket_Type;
+      row: My_Range;
+      start_cplx, end_cplx: Complex;
+      data_stream: GNAT.Sockets.Stream_Access;
+
+      function get_imag (I:My_Range) return My_Float is
+         x: constant My_Float:=My_Float(I);
+         c: constant My_Float:=My_Float(clientnum);
+      begin
+            return 1.2*(-2.0*(x/c)+1.0);
+      end get_imag;
+
+   begin
+      accept Start(sock: Socket_Type; I: My_Range) do
+         socket:=sock;
+         row:=I;
+      end Start;
+      data_stream:=Stream(socket);
+      start_cplx:=(Re => -2.0,Im => get_imag(row-1));
+      end_cplx:=(Re => 2.0, Im=> get_imag(row));
+      Complex'Output(data_stream,start_cplx);
+      Complex'Output(data_stream,end_cplx);
+      declare
+         can_read: Boolean:=True;
+         r, w: Socket_Set_Type;
+         status: Selector_Status;
+         selector: Selector_Type;
+      begin
+         Empty(w);
+         Create_Selector(Selector => selector);
+         while can_read loop
+            Empty(r);
+            Set(r,socket);
+            Check_Selector(selector,r,w,status,5.0);
+            if status=Aborted then
+               --              Put_Line(Standard_Error,"selector Aborted.");
+               can_read:=False;
+            elsif status=Completed then
+                  if not Is_Set(r,socket) then
+                  --                   Put_Line(Standard_Error,"Socket not in set. Aborting.");
+                  can_read:=False;
+               else
+                  declare
+                     request: Request_Type(Name=>N_Bytes_To_Read);
+                  begin
+                     Control_Socket(socket,request);
+                     if request.Size=0 then
+                           --                           Put_Line(Standard_Error,"Nothing to read from socket. Ending.");
+                        can_read:=False;
+                     else
+                        declare
+                           ind: constant My_Range:=My_Range'Input(data_stream);
+                           arr: constant My_Arr:=My_Arr'Input(data_stream);
+                        begin
+                           --Put_Line(Standard_Error,"Read "&My_Range'Image(ind)&"'th line of matrix.");
+                           mandelbrot.add(ind,arr);
+                        end;
+                     end if;
+                  end;
+               end if;
+            end if;
+         end loop;
+      end;
+   end handler;
+
+
+
    protected body mandelbrot is
       procedure add(I: My_Range; R: My_Arr) is
       begin
          set_vals(I):=True;
          for J in R'Range loop
             matrix(I,J):=R(J);
+         end loop;
+         for I in set_vals'Range loop
+            if set_vals(I)=False then
+               Put_Line(Standard_Error,"First non-set line is "&I'Image);
+               exit;
+            end if;
          end loop;
       end;
 
@@ -63,68 +141,6 @@ begin
    Bind_Socket(socket,addr);
    Listen_Socket(socket);
    declare
-      task type handler is
-         entry Start(sock: Socket_Type; I: My_Range);
-      end handler;
-
-      task body handler is
-         socket: Socket_Type;
-         row: My_Range;
-         start_cplx, end_cplx: Complex;
-         data_stream: GNAT.Sockets.Stream_Access;
-      begin
-         accept Start(sock: Socket_Type; I: My_Range) do
-            socket:=sock;
-            row:=I;
-         end Start;
-         data_stream:=Stream(socket);
-         start_cplx:=(Re => -2.0,Im => 1.2*(1.0-2.0*(My_Float(row-1)/My_Float(clientnum))));
-         end_cplx:=(Re => 2.0, Im=> 1.2*(1.0-2.0*My_Float(row)/My_Float(clientnum)));
-         Complex'Output(data_stream,start_cplx);
-         Complex'Output(data_stream,end_cplx);
-         declare
-            can_read: Boolean:=True;
-            r, w: Socket_Set_Type;
-            status: Selector_Status;
-            selector: Selector_Type;
-         begin
-            Empty(w);
-            Create_Selector(Selector => selector);
-            while can_read loop
-               Empty(r);
-               Set(r,socket);
-               Check_Selector(selector,r,w,status,5.0);
-               if status=Aborted then
-                  Put_Line(Standard_Error,"selector Aborted.");
-                  can_read:=False;
-               elsif status=Completed then
-                  if not Is_Set(r,socket) then
-                     Put_Line(Standard_Error,"Socket not in set. Aborting.");
-                     can_read:=False;
-                  else
-                     declare
-                        request: Request_Type(Name=>N_Bytes_To_Read);
-                     begin
-                        Control_Socket(socket,request);
-                        if request.Size=0 then
-                           Put_Line(Standard_Error,"Nothing to read from socket. Ending.");
-                           can_read:=False;
-                        else
-                           declare
-                              ind: constant My_Range:=My_Range'Input(data_stream);
-                              arr: constant My_Arr:=My_Arr'Input(data_stream);
-                           begin
-                              Put_Line(Standard_Error,"Read "&My_Range'Image(ind)&"'th line of matrix.");
-                              mandelbrot.add(ind,arr);
-                           end;
-                        end if;
-                     end;
-                  end if;
-               end if;
-            end loop;
-         end;
-      end handler;
-
 
    begin
       for I in 1..clientnum loop
@@ -134,6 +150,7 @@ begin
             handle: handler;
          begin
             Accept_Socket(socket,new_sock,new_addr);
+            Put_Line("new connection from "&Image(new_addr));
             handle.Start(new_sock,I);
          end;
       end loop;
