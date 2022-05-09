@@ -76,8 +76,8 @@ begin
             row:=I;
          end Start;
          data_stream:=Stream(socket);
-         start_cplx:=(Re => -1.0,Im => My_Float(row-1)/My_Float(clientnum));
-         end_cplx:=(Re => 1.0, Im=> My_Float(row)/My_Float(clientnum));
+         start_cplx:=(Re => -2.0,Im => 1.2*(1.0-2.0*(My_Float(row-1)/My_Float(clientnum))));
+         end_cplx:=(Re => 2.0, Im=> 1.2*(1.0-2.0*My_Float(row)/My_Float(clientnum)));
          Complex'Output(data_stream,start_cplx);
          Complex'Output(data_stream,end_cplx);
          declare
