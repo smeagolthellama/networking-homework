@@ -84,16 +84,20 @@ begin
             can_read: Boolean:=True;
             r, w: Socket_Set_Type;
             status: Selector_Status;
+            selector: Selector_Type;
          begin
             Empty(w);
+            Create_Selector(Selector => selector);
             while can_read loop
                Empty(r);
                Set(r,socket);
-               Check_Selector(Null_Selector,r,w,status,5.0);
+               Check_Selector(selector,r,w,status,5.0);
                if status=Aborted then
+                  Put_Line(Standard_Error,"selector Aborted.");
                   can_read:=False;
                elsif status=Completed then
                   if not Is_Set(r,socket) then
+                     Put_Line(Standard_Error,"Socket not in set. Aborting.");
                      can_read:=False;
                   else
                      declare
@@ -101,12 +105,14 @@ begin
                      begin
                         Control_Socket(socket,request);
                         if request.Size=0 then
+                           Put_Line(Standard_Error,"Nothing to read from socket. Waiting.");
                            can_read:=False;
                         else
                            declare
                               ind: constant My_Range:=My_Range'Input(data_stream);
                               arr: constant My_Arr:=My_Arr'Input(data_stream);
                            begin
+                              Put_Line(Standard_Error,"Read "&My_Range'Image(ind)&"'th line of matrix.");
                               mandelbrot.add(ind,arr);
                            end;
                         end if;
