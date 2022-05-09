@@ -1,3 +1,6 @@
 */obj/*
 *.ali
 *.o
+lab4/server
+lab4/stream_test
+lab4/stream_test.adb
