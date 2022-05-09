@@ -1,7 +1,9 @@
 with Ada.Text_IO; use Ada.Text_IO;
+with Ada.Streams.Stream_IO; use Ada.Streams.Stream_IO;
 with GNAT.Sockets; use GNAT.Sockets;
 with Ada.Command_Line; use Ada.Command_Line;
 with My_Types; use My_Types; use My_Types.m_c;
+with Ada.Characters.Latin_1; use Ada.Characters.Latin_1;
 
 procedure Server is
    socket: socket_Type;
@@ -69,7 +71,7 @@ begin
          socket: Socket_Type;
          row: My_Range;
          start_cplx, end_cplx: Complex;
-         data_stream: Stream_Access;
+         data_stream: GNAT.Sockets.Stream_Access;
       begin
          accept Start(sock: Socket_Type; I: My_Range) do
             socket:=sock;
@@ -138,8 +140,14 @@ begin
    end;
    declare
       mandel_mat: My_Mat;
+      mandel_file: Ada.Streams.Stream_IO.File_Type;
    begin
       mandelbrot.get(mandel_mat);
+      Create(mandel_file,Out_File,"mandelbrot.pbm");
+      Put_Line(Standard_Error,"got mandelbrot matrix.");
+      String'Write(Stream(mandel_file),"P4"&LF);
+      String'Write(Stream(mandel_file),"720 720"&LF);
+      My_Mat'Write(Stream(mandel_file),mandel_mat);
    end;
 
 exception
