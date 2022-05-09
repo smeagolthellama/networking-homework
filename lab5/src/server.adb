@@ -2,7 +2,7 @@ with Ada.Text_IO; use Ada.Text_IO;
 with Ada.Streams.Stream_IO; use Ada.Streams.Stream_IO;
 with GNAT.Sockets; use GNAT.Sockets;
 with Ada.Command_Line; use Ada.Command_Line;
-with My_Types; use My_Types; use My_Types.m_c;
+with My_Types; use My_Types; use My_Types.m_c; use My_Types.c_io;
 with Ada.Characters.Latin_1; use Ada.Characters.Latin_1;
 
 procedure Server is
@@ -46,10 +46,12 @@ procedure Server is
       end get_imag;
 
    begin
+      Put_Line(Standard_Error,"instanced handler");
       accept Start(sock: Socket_Type; I: My_Range) do
          socket:=sock;
          row:=I;
       end Start;
+      Put_Line(Standard_Error,"starting handler with socket="&Image(socket)&", row="&row'Image);
       data_stream:=Stream(socket);
       Put_Line(Standard_Error,"calling get_imag function.");
       start_cplx:=(-2.0,get_imag(row-1));
