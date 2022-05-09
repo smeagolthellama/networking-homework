@@ -7,29 +7,53 @@ procedure Server is
    socket: socket_Type;
    addr: Sock_Addr_Type;
    opt: Option_Type;
-   clientnum: Integer;
+   clientnum: My_Range;
 
    EndProgram: exception;
 
    procedure Usage is
    begin
-      Put_Line(Standard_Error,"Usage: "&Command_Name&" [number of clients] ");
+      Put_Line(Standard_Error,"Usage: "&Command_Name&" [number of clients<=720] ");
       Set_Exit_Status(Failure);
       raise EndProgram;
    end;
+
+   protected mandelbrot is
+      procedure add(I: My_Range; R: My_Arr);
+      entry get(set: out My_Mat);
+   private
+      matrix: My_Mat;
+      set_vals: My_Arr:=(others=>False);
+   end;
+
+   protected body mandelbrot is
+      procedure add(I: My_Range; R: My_Arr) is
+      begin
+         set_vals(I):=True;
+         for J in R'Range loop
+            matrix(I,J):=R(J);
+         end loop;
+      end;
+
+      entry get(set: out My_Mat) when (for all I in set_vals'Range => set_vals(I)=True)
+      is
+      begin
+         set:=matrix;
+      end get;
+   end mandelbrot;
 begin
    if Argument_Count<1 then
       Usage;
    end if;
    begin
-      clientnum:=Integer'Value(Argument(1));
+      clientnum:=My_Range'Value(Argument(1));
    exception
       when others=>
          Usage;
    end;
    Create_Socket(socket);
    addr.Addr:=Any_Inet_addr;
-   addr.Port:=7777;
+   addr.Port:=7778;
    opt:=(Name=>Reuse_Address,Enabled=>True);
    Set_Socket_Option(socket,IP_Protocol_For_IP_Level,opt);
    opt:=(Name=>Keep_Alive,Enabled=>True);
@@ -38,25 +62,61 @@ begin
    Listen_Socket(socket);
    declare
       task type handler is
-         entry Start(sock: Socket_Type; I: Integer);
+         entry Start(sock: Socket_Type; I: My_Range);
       end handler;
 
       task body handler is
          socket: Socket_Type;
-         row: Integer;
+         row: My_Range;
          start_cplx, end_cplx: Complex;
          data_stream: Stream_Access;
       begin
-         accept Start(sock: Socket_Type; I: Integer) do
+         accept Start(sock: Socket_Type; I: My_Range) do
             socket:=sock;
             row:=I;
          end Start;
          data_stream:=Stream(socket);
-         start_cplx:=Compose_From_Cartesian(Re => -1.0,Im => My_Float(row-1)/My_Float(720));
-         end_cplx:=Compose_From_Cartesian(Re => 1.0, Im=> My_Float(row)/My_Float(720));
+         start_cplx:=(Re => -1.0,Im => My_Float(row-1)/My_Float(clientnum));
+         end_cplx:=(Re => 1.0, Im=> My_Float(row)/My_Float(clientnum));
          Complex'Output(data_stream,start_cplx);
          Complex'Output(data_stream,end_cplx);
-      end;
+         declare
+            can_read: Boolean:=True;
+            r, w: Socket_Set_Type;
+            status: Selector_Status;
+         begin
+            Empty(w);
+            while can_read loop
+               Empty(r);
+               Set(r,socket);
+               Check_Selector(Null_Selector,r,w,status,5.0);
+               if status=Aborted then
+                  can_read:=False;
+               elsif status=Completed then
+                  if not Is_Set(r,socket) then
+                     can_read:=False;
+                  else
+                     declare
+                        request: Request_Type(Name=>N_Bytes_To_Read);
+                     begin
+                        Control_Socket(socket,request);
+                        if request.Size=0 then
+                           can_read:=False;
+                        else
+                           declare
+                              ind: constant My_Range:=My_Range'Input(data_stream);
+                              arr: constant My_Arr:=My_Arr'Input(data_stream);
+                           begin
+                              mandelbrot.add(ind,arr);
+                           end;
+                        end if;
+                     end;
+                  end if;
+               end if;
+            end loop;
+         end;
+      end handler;
+
 
    begin
       for I in 1..clientnum loop
@@ -69,6 +129,11 @@ begin
             handle.Start(new_sock,I);
          end;
       end loop;
+   end;
+   declare
+      mandel_mat: My_Mat;
+   begin
+      mandelbrot.get(mandel_mat);
    end;
 
 exception
