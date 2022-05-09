@@ -1,6 +1,7 @@
 with Ada.Text_IO; use Ada.Text_IO;
 with GNAT.Sockets; use GNAT.Sockets;
 with Ada.Command_Line; use Ada.Command_Line;
+with My_Types; use My_Types;
 
 procedure Server is
    socket: socket_Type;
@@ -16,7 +17,6 @@ procedure Server is
       Set_Exit_Status(Failure);
       raise EndProgram;
    end;
-
 begin
    if Argument_Count<1 then
       Usage;
@@ -49,6 +49,7 @@ begin
             socket:=sock;
             row:=I;
          end Start;
+
       end;
 
    begin
@@ -58,7 +59,7 @@ begin
             new_addr: Sock_Addr_Type;
          begin
             Accept_Socket(socket,new_sock,new_addr);
-
+            handler.Start(new_sock,I);
          end;
       end loop;
    end;
