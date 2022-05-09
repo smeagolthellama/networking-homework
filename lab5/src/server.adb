@@ -145,8 +145,9 @@ begin
       mandelbrot.get(mandel_mat);
       Create(mandel_file,Out_File,"mandelbrot.pbm");
       Put_Line(Standard_Error,"got mandelbrot matrix.");
-      String'Write(Stream(mandel_file),"P4"&LF);
+      String'Write(Stream(mandel_file),"P5"&LF);
       String'Write(Stream(mandel_file),"720 720"&LF);
+      String'Write(Stream(mandel_file),"1"&LF);
       My_Mat'Write(Stream(mandel_file),mandel_mat);
    end;
 
